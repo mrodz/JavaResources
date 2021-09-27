@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.regex.Pattern;
 import java.util.function.UnaryOperator;
 
+@SuppressWarnings(value = {"unused"})
 public class LogMessage {
     private static final HashMap<Integer, String> levels = new HashMap<>();
 
@@ -76,7 +78,6 @@ public class LogMessage {
      * @param message is the message to be logged.
      * @param level Select either {@link #DEBUG}, {@link #INFO}, {@link #WARN}, {@link #ERROR}, or {@link #FATAL}
      *              in accordance with the chart above to serve as an indication of the log's severity.
-     * @throws IOException if the program encounters an error while writing through the default {@link OutputStream}.
      */
     public LogMessage(String message, int level) {
         this(message, level, defaultOutputStreams);
@@ -125,7 +126,6 @@ public class LogMessage {
      * @param level Select either {@link #DEBUG}, {@link #INFO}, {@link #WARN}, {@link #ERROR}, or {@link #FATAL}
      *              in accordance with the chart above to serve as an indication of the log's severity.
      * @param outputs Select where you'd like the logger to write to, must extend {@link OutputStream}.
-     * @throws IOException if the program encounters an error while writing through the {@link OutputStream}.
      */
     public LogMessage(String message, int level, OutputStream... outputs) {
         try {
