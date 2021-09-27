@@ -228,7 +228,9 @@ public class LogMessage {
                 exist.put(element, element.toString());
             }
         }
-        T[] copy = Arrays.copyOf(array, res.size());
+        // instantiate a generic array
+        @SuppressWarnings("unchecked")
+        T[] copy = (T[]) Array.newInstance(array.getClass().getComponentType(), res.size());
         for (int i = 0; i < copy.length; i++) {
             copy[i] = res.get(i);
         }
