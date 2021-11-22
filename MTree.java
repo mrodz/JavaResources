@@ -1,6 +1,7 @@
 package internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -114,6 +115,9 @@ public class MTree<T> {
      */
     @SafeVarargs
     public final void add(MTree<T>... nodes) {
+        if (Arrays.stream(nodes).anyMatch(Objects::isNull)) {
+            throw new NullPointerException("null input");
+        }
         for (MTree<T> node : nodes) {
             node.setParent(this);
             this.addChild(node);
@@ -127,6 +131,10 @@ public class MTree<T> {
      */
     @SafeVarargs
     public final void add(T... nodes) {
+        if (Arrays.stream(nodes).anyMatch(Objects::isNull)) {
+            throw new NullPointerException("null input");
+        }
+
         @SuppressWarnings("unchecked")
         MTree<T>[] nodes1 = new MTree[nodes.length];
         for (int i = 0; i < nodes.length; i++) {
