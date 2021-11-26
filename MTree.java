@@ -95,6 +95,10 @@ public class MTree<T> {
      */
     private static final char[] SPECIAL_CHARACTERS = {0x2502, 0x2514, 0x251C, 0x2500};
 
+    //
+    // Preferences
+    //
+
     /**
      * Specify whether or any special characters should be escaped when
      * getting a fancy {@link String} version of the table (preferred: {@code true}).
@@ -102,10 +106,20 @@ public class MTree<T> {
      */
     private boolean escapeCharacters = true;
 
+    /**
+     * Whether or not to use Java's native tab (\t) for horizontal spacing.
+     */
+    private static final boolean USE_NATIVE_TAB = false;
+
+    /**
+     * If {@link #USE_NATIVE_TAB} is {@code false}, how many spaces to use instead.
+     */
+    private static final int REPLACEMENT_TAB_SPACES = 3;
+
     //
     // CONSTRUCTORS
     //
-    
+
     /**
      * Construct a new {@link MTree} with no starting node.
      *
@@ -128,7 +142,7 @@ public class MTree<T> {
     //
     // SPECIALIZED METHODS
     //
-    
+
     /**
      * Add pre-determined nodes to this node (varargs).
      *
@@ -237,7 +251,7 @@ public class MTree<T> {
         // Cannot find value
         return Optional.empty();
     }
-    
+
     /**
      * Simple recursive tree traversal algorithm.
      *
@@ -264,7 +278,7 @@ public class MTree<T> {
             // Apply the cosmetic tabs and pipes
             for (int j = 0; j < offset; j++) {
                 temp = temp.getParent();
-                str.append(repeatCharacters.apply(1, '\t'));
+                str.append(MTree.USE_NATIVE_TAB ? '\t' : repeatCharacters.apply(MTree.REPLACEMENT_TAB_SPACES, ' '));
                 str.append(temp.completed ? ' ' : SPECIAL_CHARACTERS[0]);
             }
 
@@ -301,7 +315,11 @@ public class MTree<T> {
     }
 
     /**
-     * Get this tree's content in a fancy format.
+     * Get this tree's content in a fancy format. Keep in mind that the
+     * style of the return value depends on the viewport, since smaller
+     * STDI/O's might not be able to a show the entirety of a long value 
+     * on a single line.
+     * 
      * @return a large formatted {@link String}
      * @see #print()
      */
@@ -393,9 +411,9 @@ public class MTree<T> {
     }
 
     /**
-     * Get whether this instance of {@link MTree} is escaping character 
+     * Get whether this instance of {@link MTree} is escaping character
      * sequences in pretty Strings.
-     * 
+     *
      * @return whether it is or is not
      */
     public boolean isEscapingCharacters() {
@@ -403,9 +421,9 @@ public class MTree<T> {
     }
 
     /**
-     * Set whether this instance of {@link MTree} is escaping character 
+     * Set whether this instance of {@link MTree} is escaping character
      * sequences in pretty Strings.
-     * 
+     *
      * @param escapeCharacters the value
      */
     public void setEscapingCharacters(boolean escapeCharacters) {
@@ -415,7 +433,7 @@ public class MTree<T> {
     //
     // RESOURCES
     //
-    
+
     /**
      * Function that returns a {@link String} repeating a character (c) a certain amount of times (reps).
      */
@@ -460,7 +478,7 @@ public class MTree<T> {
     public static <K> String ln(K s) {
         return s.toString() + '\n';
     }
-    
+
     //
     // OVERRIDES
     //
