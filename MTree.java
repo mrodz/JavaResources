@@ -1,37 +1,39 @@
-package internal;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * <p>
- *     My implementation of a Tree collection in Java. This class acts as both an
- *     individual node and a tree data structure at the same time.
- * </p>
- * <p>
- *     Below is an example implementation.
- * </p>
- * <pre>
- *     MTree&lt;String&gt; programmingLanguages = new MTree&lt;&gt;("Languages");
- *     programmingLanguages.add("Compiled Languages", "Interpreted Languages","Esoteric Languages");
+ * <p>An implementation of a Tree Data Structure in Java. This class acts as both
+ * an individual node and a tree data structure at the same time. It can serve
+ * useful when establishing relational and hierarchical relationships between
+ * objects, and differs from a standard Binary Tree.</p>
  *
- *     programmingLanguages.get(0).add("Java", "C++", "Go");
- *     programmingLanguages.get(1).add("Python", "JavaScript");
- *     programmingLanguages.get(2).add("BrainF***");
+ * <p>Below is a sample implementation.</p>
+ * <p><pre>
+ *     MTree&lt;String&gt; exampleTree = new MTree&lt;&gt;("Languages");
+ *     exampleTree.insert("Compiled", "Interpreted", "Esoteric");
  *
- *     programmingLanguages.get(0).get(0).add("Java is cool", "Android :)");
- *     programmingLanguages.get(0).get(1).add("C++ is used to make games.");
+ *     exampleTree.getNode(0).insert("Java", "C++", "Go");
+ *     exampleTree.getNode(1).insert("Python", "JavaScript");
+ *     exampleTree.getNode(2).insert("BrainF***");
  *
- *     programmingLanguages.get(2).get(0).add("Only uses eight pointers");
+ *     exampleTree.getNode(0).getNode(0).insert("Java is cool", "Android :)");
+ *     exampleTree.getNode(0).getNode(1).insert("C++ is used to make games.");
+ *
+ *     exampleTree.deepSearchChildren("BrainF***").get()
+ *             .insert("Only uses eight pointers");
  *
  *     programmingLanguages.print();
- * </pre>
- * <p>
- *     This code would output the following:
- * </p>
+ * </pre></p>
+ * <p>This code would output the following:</p>
  * <pre>
  *     Languages
  *     ├── Compiled Languages
@@ -46,24 +48,32 @@ import java.util.function.BiFunction;
  *     │    └── JavaScript
  *     └── Esoteric Languages
  *          └── BrainF***
- *  	 	    └── Only uses eight pointers
+ *  	         └── Only uses eight pointers
  * </pre>
  *
- * This class was designed specifically in mind to allow for the splitting
- * of equations, following the PEMDAS rule, while building a calculator.
+ * <p>Most of the calculations and method calls operate with a general <tt>O(n)</tt>
+ * computational complexity. This is because every node is only visited once,
+ * across every method provided in this class.</p>
  *
- * @param <T> The type of the data type stored in the tree.
+ * <p>Note: one should take care when providing a mutable object as the key value
+ * initializing a node, for the behavior of the tree is not specified should
+ * a node's {@link #equals(Object)} method be set to return a different value
+ * in a separate thread.</p>
+ *
+ * @param <T> The type of the data stored in the tree.
+ * @author github@mrodz
+ * @since 8
  */
 public class MTree<T> {
     /**
      * The actual value stored in this node of the tree.
      */
-    private T DATA;
+    private volatile T DATA;
 
     /**
      * The parent node to this instance. If this is the root node, its parent is {@code null}
      */
-    private MTree<T> PARENT;
+    private volatile MTree<T> PARENT;
 
     /**
      * An {@link ArrayList} containing all nodes that are children to this node.
@@ -73,7 +83,12 @@ public class MTree<T> {
     /**
      * Used when printing the grid; ignore.
      */
-    private boolean completed = false;
+    private volatile boolean completed = false;
+
+    /**
+     * Stores all of the values associated with the children to this node.
+     */
+    private final Set<T> entries = new HashSet<>();
 
     /**
      * These are the characters used to visualize the tree.
@@ -81,8 +96,22 @@ public class MTree<T> {
     private static final char[] SPECIAL_CHARACTERS = {0x2502, 0x2514, 0x251C, 0x2500};
 
     /**
-     * Construct a new {@link MTree} with no starting node.
+     * Specify whether or any special characters should be escaped when
+     * getting a fancy {@link String} version of the table (preferred: {@code true}).
+     * @see #cancelEscapeSequences
      */
+    private boolean escapeCharacters = true;
+
+    //
+    // CONSTRUCTORS
+    //
+    
+    /**
+     * Construct a new {@link MTree} with no starting node.
+     *
+     * @deprecated - a tree should contain a root element, for best clarity.
+     */
+    @Deprecated
     public MTree() {
     }
 
@@ -96,31 +125,28 @@ public class MTree<T> {
         this.DATA = startingNode;
     }
 
-    /**
-     * Get the Nth child to this node.
-     *
-     * @param index an {@code int} index
-     * @return the {@link MTree} node at the specified index.
-     * @throws IndexOutOfBoundsException if the index supplied is greater than the total amount
-     *                                   of child nodes connected to this node, or less than zero.
-     */
-    public MTree<T> get(int index) throws IndexOutOfBoundsException {
-        return CHILDREN.get(index);
-    }
-
+    //
+    // SPECIALIZED METHODS
+    //
+    
     /**
      * Add pre-determined nodes to this node (varargs).
      *
      * @param nodes the nodes to be added.
      */
     @SafeVarargs
-    public final void add(MTree<T>... nodes) {
+    public final void insert(MTree<T>... nodes) {
         if (Arrays.stream(nodes).anyMatch(Objects::isNull)) {
             throw new NullPointerException("null input");
         }
         for (MTree<T> node : nodes) {
-            node.setParent(this);
-            this.addChild(node);
+            if (this.entries.contains(node.DATA)) {
+                throw new IllegalArgumentException("Duplicate entry into tree: " + node);
+            } else {
+                node.setParent(this);
+                this.addChild(node);
+                this.entries.add(node.DATA);
+            }
         }
     }
 
@@ -130,7 +156,7 @@ public class MTree<T> {
      * @param nodes the raw data to be added to this node.
      */
     @SafeVarargs
-    public final void add(T... nodes) {
+    public final void insert(T... nodes) {
         if (Arrays.stream(nodes).anyMatch(Objects::isNull)) {
             throw new NullPointerException("null input");
         }
@@ -141,7 +167,149 @@ public class MTree<T> {
             nodes1[i] = new MTree<>(nodes[i]);
         }
 
-        add(nodes1);
+        insert(nodes1);
+    }
+
+    /**
+     * Exclusively search the children that only span immediately from this node
+     * (ie. depth of one) for a node with a matching value.
+     *
+     * @param data The object to be matched
+     * @return An {@link Optional} containing the node with the matching {@link #DATA}
+     * to the object supplied, if found; otherwise, {@link Optional#empty()}
+     */
+    public final Optional<MTree<T>> searchChildrenFor(final T data) {
+        if (!this.entries.contains(data)) {
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(this.CHILDREN.stream()
+                .filter(n -> n.DATA.equals(data))
+                .collect(Collectors.toList()).get(0));
+    }
+
+    /**
+     * Search <u>every</u> child connected to this node for a node with a matching value.
+     * This method will return the shallowest match exclusively, to avoid mix-ups.
+     *
+     * @param data The object to be matched
+     * @return An {@link Optional} containing the node with the matching {@link #DATA}
+     * to the object supplied, if found; otherwise, {@link Optional#empty()}
+     * @see MTree#find(Object, MTree)
+     */
+    public final Optional<MTree<T>> deepSearchChildrenFor(final T data) {
+        return MTree.find(data, this);
+    }
+
+    /**
+     * Recursive function to search for an object in all of the nodes (children)
+     * spanning from a specified target node. This method will return the shallowest match
+     * exclusively, to avoid mix-ups.
+     *
+     * @param object The object
+     * @param node   The parent node
+     * @param <R>    The type of the returning {@link Optional}, the object being
+     *               searched for, and the type of the {@link #DATA} being stored
+     *               in the parent node.
+     * @return An {@link Optional} containing the node with the matching {@link #DATA}
+     * to the object supplied, if found; otherwise, {@link Optional#empty()}
+     * @see #searchChildrenFor(Object)
+     */
+    public static <R> Optional<MTree<R>> find(final R object, MTree<R> node) {
+        if (node.DATA.equals(object)) {
+            return Optional.of(node);
+        } else if (node.entries.contains(object)) {
+            Stream<MTree<R>> stream = node.CHILDREN.stream().filter(n -> n.DATA.equals(object));
+            List<MTree<R>> collected = stream.collect(Collectors.toList());
+            if (collected.size() != 1) {
+                throw new IllegalStateException("Multiple children to " + node + "have the same canonical value.");
+            }
+            return Optional.of(collected.get(0));
+        }
+
+        for (MTree<R> child : node.CHILDREN) {
+            Optional<MTree<R>> obj = find(object, child);
+            if (obj.isPresent()) {
+                return obj;
+            }
+        }
+
+        // Cannot find value
+        return Optional.empty();
+    }
+    
+    /**
+     * Simple recursive tree traversal algorithm.
+     *
+     * @param res    Recursive field: to use, initialize a new {@link StringBuilder}
+     * @param init   This is the grid to be traversed.
+     * @param offset Recursive field, represents the amount of tab/spaces: to use, set to {@code 0}.
+     * @return a {@link String} containing a formatted tree, one that resembles the output from
+     * the {@code tree} command in the windows command line.
+     */
+    private String buildFormattedTree(StringBuilder res, MTree<T> init, int offset) {
+        List<MTree<T>> children = init.getChildren();
+
+        // No children exist; the node is the last node in this lineage
+        if (children.size() == 0) {
+            return "";
+        }
+
+        // Go through each child
+        for (int i = 0; i < children.size(); i++) {
+            MTree<T> node = children.get(i);
+            MTree<T> temp = init;
+            StringBuilder str = new StringBuilder();
+
+            // Apply the cosmetic tabs and pipes
+            for (int j = 0; j < offset; j++) {
+                temp = temp.getParent();
+                str.append(repeatCharacters.apply(1, '\t'));
+                str.append(temp.completed ? ' ' : SPECIAL_CHARACTERS[0]);
+            }
+
+            boolean isLastElement = i == children.size() - 1;
+
+            res.append(str.reverse());
+            res.append(isLastElement
+                    ? SPECIAL_CHARACTERS[1]
+                    : SPECIAL_CHARACTERS[2]).append(repeatCharacters.apply(2, SPECIAL_CHARACTERS[3]));
+
+            // is the node the last node to appear in the sequence (visually)
+            if (isLastElement) {
+                node.getParent().completed = true;
+            }
+
+            res.append(' ').append(ln(this.escapeCharacters
+                    ? cancelEscapeSequences.apply(node.getNodeValue().toString())
+                    : node.getNodeValue()));
+
+            buildFormattedTree(res, node, offset + 1);
+        }
+
+        // clear excess newline, return value
+        return res.substring(0, res.length() - 1);
+    }
+
+    /**
+     * Print this tree's content in a natural, easy to follow manner.
+     *
+     * @see #buildFormattedTree(StringBuilder, MTree, int)
+     */
+    public void print() {
+        System.out.println(this.getFancyString());
+    }
+
+    /**
+     * Get this tree's content in a fancy format.
+     * @return a large formatted {@link String}
+     * @see #print()
+     */
+    public String getFancyString() {
+        // Handle deprecated functionality: data = null
+        String str = this.DATA == null ? this.getClass().getSimpleName() + '@' + this.hashCode() : this.DATA.toString();
+        str += this.getChildren().size() == 0 ? "" : pln(buildFormattedTree(new StringBuilder(), this, 0));
+        return str;
     }
 
     /**
@@ -151,6 +319,22 @@ public class MTree<T> {
      */
     private void addChild(MTree<T> child) {
         this.CHILDREN.add(child);
+    }
+
+    //
+    // GETTERS + SETTERS
+    //
+
+    /**
+     * Get the Nth child to this node.
+     *
+     * @param index an {@code int} index
+     * @return the {@link MTree} node at the specified index.
+     * @throws IndexOutOfBoundsException if the index supplied is greater than the total amount
+     *                                   of child nodes connected to this node, or less than zero.
+     */
+    public MTree<T> getNode(int index) throws IndexOutOfBoundsException {
+        return CHILDREN.get(index);
     }
 
     /**
@@ -199,69 +383,75 @@ public class MTree<T> {
     }
 
     /**
-     * Simple recursive tree traversal algorithm.
+     * Get the canonical values associated with all of the children to this node,
+     * of type {@code T}
      *
-     * @param res    Recursive field: to use, initialize a new {@link StringBuilder}
-     * @param init   This is the grid to be traversed.
-     * @param offset Recursive field: to use, set to {@code 0}.
-     * @return a {@link String} containing a formatted tree, one that resembles the output from
-     * the {@code tree} command in the windows command line.
+     * @return {@link #entries}
      */
-    private String buildFormattedTree(StringBuilder res, MTree<T> init, int offset) {
-        // Function that returns a String repeating a character (c) a certain amount of times (reps).
-        final BiFunction<Integer, Character, String> repeatCharacters = (reps, c) -> {
-            StringBuilder str = new StringBuilder();
-            for (int i = 0; i < reps; i++) {
-                str.append(c);
-            }
-            return str.toString();
-        };
-
-        List<MTree<T>> children = init.getChildren();
-        if (children.size() == 0) {
-            return "";
-        } else {
-            for (int i = 0; i < children.size(); i++) {
-                MTree<T> node = children.get(i);
-                MTree<T> temp = init;
-                StringBuilder str = new StringBuilder();
-
-                for (int j = 0; j < offset; j++) {
-                    temp = temp.getParent();
-                    str.append(repeatCharacters.apply(1, '\t'));
-                    str.append(temp.completed ? ' ' : SPECIAL_CHARACTERS[0]);
-                }
-
-                res.append(str.reverse());
-                res.append(i == children.size() - 1
-                        ? SPECIAL_CHARACTERS[1]
-                        : SPECIAL_CHARACTERS[2]).append(repeatCharacters.apply(2, SPECIAL_CHARACTERS[3]));
-
-                if (i == children.size() - 1) {
-                    node.getParent().completed = true;
-                }
-
-                res.append(' ').append(ln(node.getNodeValue()));
-                buildFormattedTree(res, node, offset + 1);
-
-                if (i == children.size() - 1) {
-                    init.completed = true;
-                }
-            }
-            return res.substring(0, res.length() - 1);
-        }
+    public Set<T> getEntries() {
+        return entries;
     }
 
     /**
-     * Print this tree's content in a natural, easy to follow manner.
-     *
-     * @see #buildFormattedTree(StringBuilder, MTree, int)
+     * Get whether this instance of {@link MTree} is escaping character 
+     * sequences in pretty Strings.
+     * 
+     * @return whether it is or is not
      */
-    public void print() {
-        String str = this.DATA == null ? this.getClass().getSimpleName() + '@' + this.hashCode() : this.DATA.toString();
-        str += this.getChildren().size() == 0 ? "" : pln(buildFormattedTree(new StringBuilder(), this, 0));
-        System.out.println(str);
+    public boolean isEscapingCharacters() {
+        return escapeCharacters;
     }
+
+    /**
+     * Set whether this instance of {@link MTree} is escaping character 
+     * sequences in pretty Strings.
+     * 
+     * @param escapeCharacters the value
+     */
+    public void setEscapingCharacters(boolean escapeCharacters) {
+        this.escapeCharacters = escapeCharacters;
+    }
+
+    //
+    // RESOURCES
+    //
+    
+    /**
+     * Function that returns a {@link String} repeating a character (c) a certain amount of times (reps).
+     */
+    private static final BiFunction<Integer, Character, String> repeatCharacters = (reps, c) -> {
+        StringBuilder str = new StringBuilder();
+        for (int i = 0; i < reps; i++) {
+            str.append(c);
+        }
+        return str.toString();
+    };
+
+    /**
+     * Low-level function that returns a {@link String} canceling most ['\n', '\t', '\r']
+     * of Java's escape characters.
+     */
+    public static final UnaryOperator<String> cancelEscapeSequences = (str) -> {
+        StringBuilder res = new StringBuilder();
+        char[] chars = str.toCharArray();
+        for (char c : chars) {
+            switch (c) {
+                case 9:
+                    res.append("\\t");
+                    break;
+                case 10:
+                    res.append("\\n");
+                    break;
+                case 13:
+                    res.append("\\r");
+                    break;
+                default:
+                    res.append(c);
+                    break;
+            }
+        }
+        return res.toString();
+    };
 
     public static <K> String pln(K s) {
         return '\n' + s.toString();
@@ -270,6 +460,10 @@ public class MTree<T> {
     public static <K> String ln(K s) {
         return s.toString() + '\n';
     }
+    
+    //
+    // OVERRIDES
+    //
 
     @Override
     public boolean equals(Object o) {
@@ -297,9 +491,6 @@ public class MTree<T> {
      */
     @Override
     public String toString() {
-        return "MTree{" +
-                "DATA=" + DATA +
-                ", CHILDREN=" + CHILDREN +
-                '}';
+        return String.format("%s{DATA=%s, CHILDREN=%s}", this.getClass().getSimpleName(), DATA, CHILDREN);
     }
 }
