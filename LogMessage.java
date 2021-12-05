@@ -162,17 +162,17 @@ public class LogMessage {
 
          // regex to locate this instance in the stack chain
          Pattern pattern = Pattern.compile(String.format("^%s\\.<init>\\(%s\\.java:\\d++\\)$", (
-                 (UnaryOperator<String>) str -> {
-                     // lambda to escape periods in the package + class
-                     if (!str.contains(".")) {
-                         return str;
-                     }
-                     StringBuilder res = new StringBuilder();
-                     for (char c : str.toCharArray()) {
-                         res.append(c == '.' ? "\\." : c);
-                     }
-                     return res.toString();
-                 }
+               (UnaryOperator<String>) str -> {
+                    // lambda to escape periods in the package + class
+                    if (!str.contains(".") && !str.contains("$")) {
+                        return str;
+                    }
+                    StringBuilder res = new StringBuilder();
+                    for (char c : str.toCharArray()) {
+                        res.append(c == '.' ? "\\." : c == '$' ? "\\$" : c);
+                    }
+                    return res.toString();
+               }
          ).apply(clazz.getName()), clazz.getSimpleName()));
 
          // matching StackTraceElements
