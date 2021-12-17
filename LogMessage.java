@@ -84,6 +84,15 @@ public class LogMessage {
     }
 
     /**
+     * Allows for logging variables, or just an object by itself.
+     * @param obj The object to be logged ({@link Object#toString()})
+     * @param logValue whether or not to include some text in front of the variable or not.
+     */
+    public LogMessage(Object obj, boolean logValue) {
+        this(logValue ? String.format("variable of %s = %s", obj.getClass(), obj) : obj.toString(), LogMessage.DEBUG);
+    }
+
+    /**
      * <p>
      *     Construct a {@link LogMessage} to build a message and a respective error level. This constructor
      *     will write the output to the value given as the <tt>outputs</tt> parameter.
@@ -163,7 +172,7 @@ public class LogMessage {
          // regex to locate this instance in the stack chain
          Pattern pattern = Pattern.compile(String.format("^%s\\.<init>\\(%s\\.java:\\d++\\)$", (
                  (UnaryOperator<String>) str -> {
-                     // lambda to escape periods in the package + class
+                     // lambda to escape periods/dollar signs in the package + class
                      if (!str.contains(".") && !str.contains("$")) {
                          return str;
                      }
